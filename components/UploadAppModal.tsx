@@ -9,7 +9,7 @@ export default function UploadAppModal() {
   const { isUploadOpen, setIsUploadOpen, addApp, user } = useStore();
   const [name, setName] = useState('');
   const [developer, setDeveloper] = useState(user?.name || '');
-  const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Herramientas Dev');
+const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Juegos');
   const [price, setPrice] = useState('0');
   const [shortDesc, setShortDesc] = useState('');
   const [description, setDescription] = useState('');
