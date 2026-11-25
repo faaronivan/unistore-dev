@@ -69,7 +69,6 @@ export const INITIAL_APPS: AppItem[] = [
     tags: ['Fútbol', 'En Vivo', 'Estadísticas', 'Ligas Mundiales'],
     screenshots: [
       'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1000&q=80',
-      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1000&q=80',
     ],
     requirements: {
       os: 'Android 10+, iOS 14+ o Web',

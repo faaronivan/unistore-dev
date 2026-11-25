@@ -12,13 +12,13 @@ import {
   HardDrive,
   Monitor,
   Send,
+  Trash2,
 } from 'lucide-react';
 
 export default function AppDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { apps, purchasedIds, downloadingIds, startDownload, setCheckoutApp, addReview } =
-    useStore();
+  const { apps, user, purchasedIds, downloadingIds, startDownload, setCheckoutApp, addReview, deleteReview } = useStore();
 
   const app = apps.find((a) => a.id === params.id);
   const [rating, setRating] = useState(5);
@@ -223,27 +223,47 @@ export default function AppDetailPage() {
         </form>
 
         <div className="space-y-3">
-          {app.reviews.map((rev) => (
-            <div
-              key={rev.id}
-              className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4"
+          {app.reviews.map((rev) => {
+  const canDeleteReview = Boolean(
+    user &&
+      rev.userEmail &&
+      (user.role === 'admin' ||
+        user.email.toLowerCase() === rev.userEmail.toLowerCase())
+  );
+
+  return (
+    <div
+      key={rev.id}
+      className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600/30 text-xs font-bold text-indigo-300">
+            {rev.avatar}
+          </span>
+          <span className="text-xs font-bold text-white">{rev.user}</span>
+          <span className="text-[11px] text-slate-500">{rev.date}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-amber-400">
+            <Star className="h-3.5 w-3.5 fill-amber-400" />
+            <span className="text-xs font-bold">{rev.rating}</span>
+          </div>
+          {canDeleteReview && (
+            <button
+              onClick={() => deleteReview(app.id, rev.id)}
+              title="Eliminar comentario"
+              className="rounded-md p-1 text-slate-500 transition hover:bg-rose-500/15 hover:text-rose-400"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600/30 text-xs font-bold text-indigo-300">
-                    {rev.avatar}
-                  </span>
-                  <span className="text-xs font-bold text-white">{rev.user}</span>
-                  <span className="text-[11px] text-slate-500">{rev.date}</span>
-                </div>
-                <div className="flex items-center gap-1 text-amber-400">
-                  <Star className="h-3.5 w-3.5 fill-amber-400" />
-                  <span className="text-xs font-bold">{rev.rating}</span>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-slate-300">{rev.comment}</p>
-            </div>
-          ))}
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-slate-300">{rev.comment}</p>
+    </div>
+  );
+})}
         </div>
       </section>
     </div>

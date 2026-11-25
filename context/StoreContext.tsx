@@ -19,8 +19,10 @@ interface StoreContextType {
   setUserSession: (loggedUser: UserProfile) => void;
   login: (email: string, name?: string) => void;
   logout: () => void;
-  addApp: (newApp: Omit<AppItem, 'id' | 'rating' | 'downloads' | 'reviews' | 'releaseDate'>) => void;
-  addReview: (appId: string, rating: number, comment: string) => void;
+  addApp: (newApp: Omit<AppItem, 'id' | 'rating' | 'downloads' | 'reviews' | 'releaseDate'>) => Promise<void>;
+  deleteApp: (appId: string) => Promise<void>;
+  addReview: (appId: string, rating: number, comment: string) => Promise<void>;
+  deleteReview: (appId: string, reviewId: string) => Promise<void>;
   completePurchase: (appId: string) => void;
   startDownload: (app: AppItem) => void;
   notify: (msg: string) => void;
@@ -31,10 +33,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [apps, setApps] = useState<AppItem[]>(INITIAL_APPS);
   const [user, setUser] = useState<UserProfile | null>(null);
-
-  // Compras guardadas por correo: { "correo@uni.mx": ["id1", "id2"] }
   const [purchasesByUser, setPurchasesByUser] = useState<Record<string, string[]>>({});
-
   const [downloadingIds, setDownloadingIds] = useState<Record<string, number>>({});
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -42,18 +41,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [checkoutApp, setCheckoutAppState] = useState<AppItem | null>(null);
 
-  // Cargar datos guardados del navegador al iniciar
   useEffect(() => {
-    const savedApps = localStorage.getItem('unistore_apps');
     const savedPurchasesByUser = localStorage.getItem('unistore_purchases_by_user');
     const savedUser = localStorage.getItem('unistore_current_user');
-
-    if (savedApps) setApps(JSON.parse(savedApps));
     if (savedPurchasesByUser) setPurchasesByUser(JSON.parse(savedPurchasesByUser));
     if (savedUser) setUser(JSON.parse(savedUser));
+
+    const loadFromDatabase = async () => {
+      try {
+        const [appsRes, reviewsRes] = await Promise.all([
+          fetch('/api/apps'),
+          fetch('/api/reviews'),
+        ]);
+
+        const appsData = appsRes.ok ? await appsRes.json() : { apps: [] };
+        const reviewsData = reviewsRes.ok ? await reviewsRes.json() : { reviews: [] };
+
+        const dbApps: AppItem[] = appsData.apps || [];
+        const dbReviews: (Review & { appId: string })[] = reviewsData.reviews || [];
+
+        const combined = [...dbApps, ...INITIAL_APPS].map((app) => {
+          const matchingDbReviews = dbReviews.filter((r) => r.appId === app.id);
+          const allReviews = [...matchingDbReviews, ...app.reviews];
+          const avg =
+            allReviews.length > 0
+              ? Number(
+                  (
+                    allReviews.reduce((acc, r) => acc + r.rating, 0) /
+                    allReviews.length
+                  ).toFixed(1)
+                )
+              : app.rating;
+
+          return {
+            ...app,
+            reviews: allReviews,
+            rating: avg,
+          };
+        });
+
+        setApps(combined);
+      } catch (err) {
+        console.error('Error cargando datos de PostgreSQL:', err);
+      }
+    };
+
+    loadFromDatabase();
   }, []);
 
-  // Lista de IDs comprados EXCLUSIVAMENTE por el usuario actual
   const purchasedIds = user ? purchasesByUser[user.email.toLowerCase()] || [] : [];
 
   const notify = (msg: string) => {
@@ -61,13 +96,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // Guarda la sesión real que viene desde PostgreSQL (/api/auth/login)
   const setUserSession = (loggedUser: UserProfile) => {
     setUser(loggedUser);
     localStorage.setItem('unistore_current_user', JSON.stringify(loggedUser));
   };
 
-  // Si intenta abrir el checkout sin cuenta, le pide iniciar sesión primero
   const setCheckoutApp = (app: AppItem | null) => {
     if (app && !user) {
       setIsAuthOpen(true);
@@ -104,53 +137,134 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     notify('Sesión cerrada correctamente.');
   };
 
-  const addApp = (
+  const addApp = async (
     newAppData: Omit<AppItem, 'id' | 'rating' | 'downloads' | 'reviews' | 'releaseDate'>
   ) => {
-    const newApp: AppItem = {
-      ...newAppData,
-      id: Date.now().toString(),
-      rating: 5.0,
-      downloads: 1,
-      releaseDate: new Date().toISOString().split('T')[0],
-      reviews: [],
-    };
-    const updated = [newApp, ...apps];
-    setApps(updated);
-    localStorage.setItem('unistore_apps', JSON.stringify(updated));
-    setIsUploadOpen(false);
-    notify(`¡"${newApp.name}" fue publicado con éxito en la tienda!`);
-  };
-
-  const addReview = (appId: string, rating: number, comment: string) => {
     if (!user) {
       setIsAuthOpen(true);
+      notify('Inicia sesión para publicar un programa.');
       return;
     }
-    const newReview: Review = {
-      id: Date.now().toString(),
-      user: user.name,
-      avatar: user.avatar,
-      rating,
-      date: 'Justo ahora',
-      comment,
-    };
 
-    const updated = apps.map((app) => {
-      if (app.id !== appId) return app;
-      const updatedReviews = [newReview, ...app.reviews];
-      const avg =
-        updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
-      return {
-        ...app,
-        reviews: updatedReviews,
-        rating: Number(avg.toFixed(1)),
-      };
-    });
+    try {
+      const res = await fetch('/api/apps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newAppData, ownerEmail: user.email }),
+      });
 
-    setApps(updated);
-    localStorage.setItem('unistore_apps', JSON.stringify(updated));
-    notify('¡Gracias! Tu reseña ha sido publicada.');
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.error || 'No se pudo publicar el programa.');
+        return;
+      }
+
+      setApps((prev) => [data.app, ...prev]);
+      setIsUploadOpen(false);
+      notify(`¡"${data.app.name}" se guardó en PostgreSQL y ya es visible para todos!`);
+    } catch {
+      notify('Error de conexión al publicar el programa.');
+    }
+  };
+
+  const deleteApp = async (appId: string) => {
+    if (!user) return;
+    try {
+      const res = await fetch(
+        `/api/apps?id=${encodeURIComponent(appId)}&email=${encodeURIComponent(user.email)}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.error || 'No tienes permiso para eliminar este programa.');
+        return;
+      }
+      setApps((prev) => prev.filter((a) => a.id !== appId));
+      notify('Programa eliminado correctamente.');
+    } catch {
+      notify('Error al eliminar el programa.');
+    }
+  };
+
+  const addReview = async (appId: string, rating: number, comment: string) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      notify('Inicia sesión para dejar un comentario.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId,
+          userName: user.name,
+          userEmail: user.email,
+          avatar: user.avatar,
+          rating,
+          comment,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.error || 'No se pudo publicar tu comentario.');
+        return;
+      }
+
+      setApps((prev) =>
+        prev.map((app) => {
+          if (app.id !== appId) return app;
+          const updatedReviews = [data.review, ...app.reviews];
+          const avg =
+            updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
+          return {
+            ...app,
+            reviews: updatedReviews,
+            rating: Number(avg.toFixed(1)),
+          };
+        })
+      );
+      notify('¡Gracias! Tu reseña se guardó correctamente.');
+    } catch {
+      notify('Error de conexión al publicar la reseña.');
+    }
+  };
+
+  const deleteReview = async (appId: string, reviewId: string) => {
+    if (!user) return;
+    try {
+      const res = await fetch(
+        `/api/reviews?id=${encodeURIComponent(reviewId)}&email=${encodeURIComponent(user.email)}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.error || 'No tienes permiso para borrar este comentario.');
+        return;
+      }
+
+      setApps((prev) =>
+        prev.map((app) => {
+          if (app.id !== appId) return app;
+          const updatedReviews = app.reviews.filter((r) => r.id !== reviewId);
+          const avg =
+            updatedReviews.length > 0
+              ? Number(
+                  (
+                    updatedReviews.reduce((acc, r) => acc + r.rating, 0) /
+                    updatedReviews.length
+                  ).toFixed(1)
+                )
+              : 5.0;
+          return { ...app, reviews: updatedReviews, rating: avg };
+        })
+      );
+      notify('Comentario eliminado.');
+    } catch {
+      notify('Error al eliminar el comentario.');
+    }
   };
 
   const startDownload = (app: AppItem) => {
@@ -222,7 +336,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         addApp,
+        deleteApp,
         addReview,
+        deleteReview,
         completePurchase,
         startDownload,
         notify,

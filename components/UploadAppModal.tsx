@@ -2,14 +2,26 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/context/StoreContext';
+import { CATEGORIES } from '@/data/mockData';
 import { Category } from '@/types/app';
 import { X } from 'lucide-react';
+
+const COLOR_PALETTES = [
+  'from-emerald-500 to-teal-600',
+  'from-rose-500 to-pink-600',
+  'from-amber-500 to-orange-600',
+  'from-violet-600 to-purple-700',
+  'from-sky-500 to-blue-600',
+  'from-fuchsia-500 to-rose-600',
+  'from-lime-500 to-emerald-600',
+  'from-cyan-500 to-indigo-600',
+];
 
 export default function UploadAppModal() {
   const { isUploadOpen, setIsUploadOpen, addApp, user } = useStore();
   const [name, setName] = useState('');
   const [developer, setDeveloper] = useState(user?.name || '');
-const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Juegos');
+  const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Juegos');
   const [price, setPrice] = useState('0');
   const [shortDesc, setShortDesc] = useState('');
   const [description, setDescription] = useState('');
@@ -17,20 +29,28 @@ const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Juegos');
 
   if (!isUploadOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const selectableCategories = CATEGORIES.filter((c) => c !== 'Todas');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addApp({
+    const randomColor =
+      COLOR_PALETTES[Math.floor(Math.random() * COLOR_PALETTES.length)];
+
+    await addApp({
       name,
-      developer: developer || 'Compañero de Ingeniería',
+      developer: developer || user?.name || 'Compañero de Ingeniería',
       category,
       price: Number(price) || 0,
       version: '1.0.0',
       size: '35 MB',
       shortDesc,
       description,
-      iconBg: 'from-indigo-600 to-cyan-600',
+      iconBg: randomColor,
       iconName: 'Code2',
-      tags: tags.split(',').map((t) => t.trim()),
+      tags: tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
       screenshots: [
         'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80',
       ],
@@ -42,6 +62,7 @@ const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Juegos');
       },
       releaseNotes: 'v1.0.0: Lanzamiento inicial en UniStore Dev.',
     });
+
     setName('');
     setShortDesc('');
     setDescription('');
@@ -96,10 +117,11 @@ const [category, setCategory] = useState<Exclude<Category, 'Todas'>>('Juegos');
                 onChange={(e) => setCategory(e.target.value as Exclude<Category, 'Todas'>)}
                 className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-white"
               >
-                <option value="Herramientas Dev">Herramientas Dev</option>
-                <option value="Juegos">Juegos</option>
-                <option value="Productividad">Productividad</option>
-                <option value="Utilidades">Utilidades</option>
+                {selectableCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

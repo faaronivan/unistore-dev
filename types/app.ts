@@ -27,6 +27,7 @@ export interface Review {
   rating: number;
   date: string;
   comment: string;
+  userEmail?: string;
 }
 
 export interface SystemRequirements {
@@ -56,6 +57,7 @@ export interface AppItem {
   requirements: SystemRequirements;
   releaseNotes: string;
   reviews: Review[];
+  ownerEmail?: string;
 }
 
 export interface UserProfile {

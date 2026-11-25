@@ -8,6 +8,7 @@ import {
   Star,
   Download,
   ShoppingCart,
+  Trash2,
   Gamepad2,
   Trophy,
   ShieldAlert,
@@ -32,11 +33,25 @@ const ICON_MAP = {
 };
 
 export default function AppCard({ app }: { app: AppItem }) {
-  const { purchasedIds, downloadingIds, startDownload, setCheckoutApp } = useStore();
+  const { user, purchasedIds, downloadingIds, startDownload, setCheckoutApp, deleteApp } =
+    useStore();
   const IconComponent = ICON_MAP[app.iconName] || Code2;
 
   const isOwned = app.price === 0 || purchasedIds.includes(app.id);
   const progress = downloadingIds[app.id];
+
+  const canDelete = Boolean(
+    user &&
+      app.ownerEmail &&
+      (user.role === 'admin' ||
+        user.email.toLowerCase() === app.ownerEmail.toLowerCase())
+  );
+
+  const handleDelete = () => {
+    if (confirm(`¿Seguro que quieres eliminar "${app.name}"?`)) {
+      deleteApp(app.id);
+    }
+  };
 
   return (
     <div className="group flex flex-col justify-between rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 transition-all hover:-translate-y-1 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5">
@@ -46,7 +61,7 @@ export default function AppCard({ app }: { app: AppItem }) {
             <div
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${app.iconBg} text-white shadow-md`}
             >
-              <IconComponent className="h-7 w-7" />
+              {app.iconName !== 'Code2' && <IconComponent className="h-7 w-7" />}
             </div>
             <div>
               <span className="inline-block rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-400">
@@ -58,6 +73,16 @@ export default function AppCard({ app }: { app: AppItem }) {
               <p className="text-xs text-slate-400">{app.developer}</p>
             </div>
           </Link>
+
+          {canDelete && (
+            <button
+              onClick={handleDelete}
+              title="Eliminar programa"
+              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-rose-500/15 hover:text-rose-400"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-300">

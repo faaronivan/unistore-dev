@@ -38,9 +38,6 @@ export default function HomePage() {
       {/* Hero Banner */}
       <section className="relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-950 p-6 sm:p-10">
         <div className="max-w-2xl space-y-3">
-          <span className="inline-block rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-300 border border-indigo-500/30">
-            Proyectos de Ingeniería en Sistemas
-          </span>
           <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
             Explora, descarga y apoya el software de tus compañeros
           </h1>
