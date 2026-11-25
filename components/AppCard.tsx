@@ -78,7 +78,7 @@ export default function AppCard({ app }: { app: AppItem }) {
             <button
               onClick={handleDelete}
               title="Eliminar programa"
-              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-rose-500/15 hover:text-rose-400"
+              className="rounded-lg border border-white/25 bg-white/10 p-1.5 text-white transition hover:border-rose-500 hover:bg-rose-600"
             >
               <Trash2 className="h-4 w-4" />
             </button>
