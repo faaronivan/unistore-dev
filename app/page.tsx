@@ -42,7 +42,7 @@ export default function HomePage() {
             Explora, descarga y apoya el software de tus compañeros
           </h1>
           <p className="text-sm text-slate-300">
-            Desde herramientas en C++ y gestores SQL hasta videojuegos indie con soporte para pasarela de pagos Mercado Pago y Stripe.
+            Descubre, descarga y apoya aplicaciones creadas por otros estudiantes. Desde herramientas de productividad hasta juegos, encuentra software que se adapte a tus necesidades y gustos.
           </p>
         </div>
       </section>
